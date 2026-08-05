@@ -1,0 +1,42 @@
+services:
+  zebrad:
+    container_name: zebrad
+    image: cipherscan-zebra-mining:local
+    build:
+      context: ./docker/zebra
+      args:
+        ZEBRA_REF: ${ZEBRA_REF:-v6.2.3}
+    volumes:
+      - ./misc/zebra.toml:/home/zebra/.config/zebrad.toml:ro
+      - ./zebrad-cache:/home/zebra/.cache/zebra
+    # environment:
+    #   # Mining is testnet-only; force Testnet regardless of the base config.
+    #   ZEBRA_NETWORK__NETWORK: Regtest
+    #   # ZEBRA_RPC__LISTEN_ADDR: 0.0.0.0:18232
+    #   ZEBRA_RPC__ENABLE_COOKIE_AUTH: "false"
+    #   ZEBRA_STATE__CACHE_DIR: /home/zebra/.cache/zebra
+    #   ZEBRA_MINING__INTERNAL_MINER: "true"
+    #   # Required: a testnet transparent address. Compose errors if unset.
+    #   ZEBRA_MINING__MINER_ADDRESS: ${ZEBRA_MINER_ADDRESS:?set ZEBRA_MINER_ADDRESS to a testnet tm... address in .env.docker}
+    expose:
+      - "18232"
+    ports:
+      - "18232:18232"
+  lightwalletd:
+    image: lightwalletd:local
+    build:
+      context: ./docker/lightwalletd
+    restart: unless-stopped
+    depends_on:
+      - zebrad
+    command: >
+      --no-tls-very-insecure
+      --grpc-bind-addr=0.0.0.0:8137
+      --zcash-conf-path=/home/lwd/zebra.conf
+      --data-dir=/home/lwd/data
+      --log-file=/dev/stdout
+    volumes:
+      - ./misc/zebra.conf:/home/lwd/zebra.conf:ro
+      - ./lwd-cache:/home/lwd/data
+    ports:
+      - "8137:8137"
